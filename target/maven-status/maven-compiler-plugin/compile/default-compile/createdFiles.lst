@@ -1,7 +1,0 @@
-com\tsi\repository\RepositoryServiceImpl.class
-com\tsi\repository\RepositoryService.class
-com\tsi\entity\Document.class
-com\tsi\configuration\AppConfiguration.class
-com\tsi\collector\Collector.class
-com\tsi\entity\Comment.class
-com\tsi\configuration\Initializer.class
