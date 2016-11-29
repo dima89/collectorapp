@@ -1,5 +1,6 @@
 package com.tsi.repository;
 
+import com.tsi.entity.Comment;
 import com.tsi.entity.Document;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -9,6 +10,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service("repositoryService")
@@ -25,50 +27,41 @@ public class RepositoryServiceImpl implements RepositoryService
 
     public ResponseEntity<List> findAllDocuments() {
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<List> response = restTemplate.getForEntity(APIs.get(0)+"/getAllDocuments", List.class);
+        ResponseEntity<List> response = restTemplate.getForEntity(APIs.get(0) + "/getAllDocuments", List.class);
         return response;
     }
 
-    public Document findById(long id) {
-        /*for(Document document : documents){
-            if(document.getId() == id){
-                return document;
-            }
-        }*/
-        return null;
+    public Document findById(String id) {
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<Document> response = restTemplate.getForEntity(APIs.get(0) + "/get/" + id, Document.class);
+        return response.getBody();
     }
 
     public void saveDocument(Document document) {
-       /* document.setId(1);
-        documents.add(document);*/
+       document.setId(UUID.randomUUID());
+
+       Comment comment = new Comment();
+       comment.setId(UUID.randomUUID());
+       comment.setUserId(document.getId());
+
+       RestTemplate restTemplate = new RestTemplate();
+       restTemplate.postForEntity(APIs.get(0) + "/add", document, Document.class);
     }
 
     public void updateDocument(Document document) {
-        /*int index = documents.indexOf(document);
-        documents.set(index, document);*/
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.put(APIs.get(0) + "/update", document, Document.class);
     }
 
-    public void deleteDocumentById(long id) {
-         /*for (Iterator<Document> iterator = documents.iterator(); iterator.hasNext(); ) {
-             Document document = iterator.next();
-            if (document.getId() == id) {
-                iterator.remove();
-            }
-        }*/
-    }
-
-    public boolean isDocumentExist(Document document) {
-        return findById(document.getId())!=null;
+    public void deleteDocumentById(String id) {
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.delete(APIs.get(0) + "/delete/" + id);
     }
 
     private static List<String> populateAPIs(){
         List<String> apis = new ArrayList<String>();
         apis.add("http://localhost:8091/repo1/rest");
         apis.add("http://localhost:8082/repo2/rest");
-        //users.add(new User(counter.incrementAndGet(),"Sam",30, 70000));
-        //users.add(new User(counter.incrementAndGet(),"Tom",40, 50000));
-        //users.add(new User(counter.incrementAndGet(),"Jerome",45, 30000));
-        //users.add(new User(counter.incrementAndGet(),"Silvia",50, 40000));
         return apis;
     }
 }

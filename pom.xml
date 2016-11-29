@@ -42,6 +42,11 @@
       <artifactId>spring-tx</artifactId>
       <version>${spring.verson}</version>
     </dependency>
+    <dependency>
+      <groupId>com.tsi</groupId>
+      <artifactId>document-dto</artifactId>
+      <version>1.0-SNAPSHOT</version>
+    </dependency>
   </dependencies>
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>

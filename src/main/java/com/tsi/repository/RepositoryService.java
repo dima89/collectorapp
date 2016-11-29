@@ -4,17 +4,16 @@ import com.tsi.entity.Document;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface RepositoryService {
-    Document findById(long id);
+    Document findById(String id);
 
     void saveDocument(Document user);
 
     void updateDocument(Document user);
 
-    void deleteDocumentById(long id);
+    void deleteDocumentById(String id);
 
     ResponseEntity<List> findAllDocuments();
-
-    boolean isDocumentExist(Document user);
 }
