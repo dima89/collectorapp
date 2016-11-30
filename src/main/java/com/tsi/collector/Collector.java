@@ -30,7 +30,7 @@ public class Collector
     public ResponseEntity<Document> getDocumentById(@PathVariable("id") String id)
     {
         System.out.println("Fetching document with id " + id);
-        Document document = repositoryService.findById(id);
+        Document document = repositoryService.findById(id).getBody();
         if (document == null) {
             System.out.println("Document with id " + id + " not found");
             return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
@@ -55,14 +55,14 @@ public class Collector
     {
         System.out.println("Fetching & Deleting document with id " + id);
 
-        Document document = repositoryService.findById(id);
+        ResponseEntity<Document> document = repositoryService.findById(id);
 
-        if (document == null) {
+        if (document.getBody() == null) {
             System.out.println("Unable to delete. Document with id " + id + " not found");
             return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
         }
 
-        repositoryService.deleteDocumentById(id);
+        repositoryService.deleteDocumentById(id, String.valueOf(document.getHeaders().get("Location")));
         return new ResponseEntity<Document>(HttpStatus.NO_CONTENT);
     }
 
@@ -71,7 +71,7 @@ public class Collector
     {
         System.out.println("Updating document " + id);
 
-        Document currentDocument = repositoryService.findById(id);
+        Document currentDocument = repositoryService.findById(id).getBody();
 
         if (currentDocument==null) {
             System.out.println("Document with id " + id + " not found");
