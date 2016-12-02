@@ -1,6 +1,5 @@
 package com.tsi.collector;
 
-import com.tsi.entity.Comment;
 import com.tsi.entity.Document;
 import com.tsi.repository.RepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +19,9 @@ public class Collector
     RepositoryService repositoryService;
 
     @RequestMapping(value = "/rest/getAllDocuments", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List> getAllDocuments()
+    public ResponseEntity<List<Document>> getAllDocuments()
     {
-        ResponseEntity<List> documents = repositoryService.findAllDocuments();
+        ResponseEntity<List<Document>> documents = repositoryService.findAllDocuments();
         return documents;
     }
 
@@ -30,12 +29,14 @@ public class Collector
     public ResponseEntity<Document> getDocumentById(@PathVariable("id") String id)
     {
         System.out.println("Fetching document with id " + id);
-        Document document = repositoryService.findById(id).getBody();
+        ResponseEntity<Document> document = repositoryService.findById(id);
+
         if (document == null) {
             System.out.println("Document with id " + id + " not found");
             return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
         }
-        return new ResponseEntity<Document>(document, HttpStatus.OK);
+
+        return new ResponseEntity<Document>(document.getBody(), HttpStatus.OK);
     }
 
     @RequestMapping(value = "/rest/add", method = RequestMethod.POST, produces = MediaType.APPLICATION_JSON_VALUE)
@@ -57,7 +58,7 @@ public class Collector
 
         ResponseEntity<Document> document = repositoryService.findById(id);
 
-        if (document.getBody() == null) {
+        if (document == null) {
             System.out.println("Unable to delete. Document with id " + id + " not found");
             return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
         }
@@ -67,25 +68,27 @@ public class Collector
     }
 
     @RequestMapping(value = "/rest/update/{id}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Document> updateDocument(@PathVariable("id") String id, @RequestBody Document document)
+    public ResponseEntity<Document> updateDocument(@PathVariable("id") String id, @RequestBody Document documentReq)
     {
         System.out.println("Updating document " + id);
 
-        Document currentDocument = repositoryService.findById(id).getBody();
+        ResponseEntity<Document> currentDocument = repositoryService.findById(id);
 
-        if (currentDocument==null) {
+        if (currentDocument == null) {
             System.out.println("Document with id " + id + " not found");
             return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
         }
-        System.out.println("Document with id " + currentDocument.getId() + " found");
 
-        currentDocument.setName(document.getName());
-        currentDocument.setTitle(document.getTitle());
-        currentDocument.setContent(document.getContent());
-        currentDocument.setIndexMap(document.getIndexMap());
-        currentDocument.setComments(document.getComments());
+        Document documentRes = currentDocument.getBody();
+        System.out.println("Document with id " + documentRes.getId() + " found");
 
-        repositoryService.updateDocument(currentDocument);
-        return new ResponseEntity<Document>(currentDocument, HttpStatus.OK);
+        documentRes.setName(documentReq.getName());
+        documentRes.setTitle(documentReq.getTitle());
+        documentRes.setContent(documentReq.getContent());
+        documentRes.setIndexMap(documentReq.getIndexMap());
+        documentRes.setComments(documentReq.getComments());
+
+        repositoryService.updateDocument(documentRes, String.valueOf(currentDocument.getHeaders().get("Location")));
+        return new ResponseEntity<Document>(documentRes, HttpStatus.OK);
     }
 }

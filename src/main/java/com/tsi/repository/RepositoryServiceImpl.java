@@ -1,30 +1,30 @@
 package com.tsi.repository;
 
+import com.tsi.adapter.DocumentAdapter;
+import com.tsi.configuration.ApiConfig;
+import com.tsi.dao.DocumentDbDao;
 import com.tsi.entity.Comment;
 import com.tsi.entity.Document;
-import org.springframework.http.HttpHeaders;
+import com.tsi.entity.DocumentDb;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service("repositoryService")
 @Transactional
-public class RepositoryServiceImpl implements RepositoryService
-{
-    private static List<String> APIs;
+public class RepositoryServiceImpl implements RepositoryService {
 
-    private static final AtomicLong counter = new AtomicLong();
+    @Autowired
+    private ApiConfig apiConfig;
 
-    static{
-        APIs = populateAPIs();
-    }
+    @Autowired
+    private DocumentDbDao documentDao;
 
     public static class GetAllDocuments implements Callable {
         private final String url;
@@ -33,9 +33,12 @@ public class RepositoryServiceImpl implements RepositoryService
             this.url = url;
         }
 
-        public ResponseEntity<List> call() throws Exception {
+        public ResponseEntity<List<Document>> call() throws Exception {
             RestTemplate restTemplate = new RestTemplate();
-            return restTemplate.getForEntity(url + "/getAllDocuments", List.class);
+
+            ResponseEntity<Document[]> documents = restTemplate.getForEntity(url + "/getAllDocuments", Document[].class);
+            List<Document> list = Arrays.asList(documents.getBody());
+            return new ResponseEntity<List<Document>>(list, HttpStatus.OK);
         }
     }
 
@@ -53,23 +56,27 @@ public class RepositoryServiceImpl implements RepositoryService
         }
     }
 
-    public ResponseEntity<List> findAllDocuments() {
-        ExecutorService service = Executors.newCachedThreadPool();
-        Set <Callable<ResponseEntity<List>>> callables = new HashSet<Callable<ResponseEntity<List>>>();
+    public ResponseEntity<List<Document>> findAllDocuments() {
 
-        for (String apiUrl: APIs) {
+        ExecutorService service = Executors.newCachedThreadPool();
+        Set <Callable<ResponseEntity<List<Document>>>> callables = new HashSet<Callable<ResponseEntity<List<Document>>>>();
+
+        for (String apiUrl: apiConfig.getApiList()) {
             Callable worker = new GetAllDocuments(apiUrl);
             callables.add(worker);
         }
 
         try
         {
-            List<Future<ResponseEntity<List>>> futures = service.invokeAll(callables);
-            ResponseEntity<List> response = new ResponseEntity<List>(new ArrayList(), HttpStatus.OK);
-            for (Future<ResponseEntity<List>> future : futures)
+            List<Future<ResponseEntity<List<Document>>>> futures = service.invokeAll(callables);
+            ResponseEntity<List<Document>> response = new ResponseEntity<List<Document>>(new ArrayList(), HttpStatus.OK);
+            for (Future<ResponseEntity<List<Document>>> future : futures)
             {
                 System.out.println (future.get());
-                response.getBody().add(future.get().getBody());
+                for (Document documentObj: future.get().getBody()) {
+                    documentDao.save(DocumentAdapter.fromDocument(documentObj));
+                    response.getBody().add(documentObj);
+                }
             }
             return response;
         }
@@ -83,14 +90,22 @@ public class RepositoryServiceImpl implements RepositoryService
         }
         service.shutdown();
 
-        return new ResponseEntity<List>(HttpStatus.NO_CONTENT);
+        return new ResponseEntity<List<Document>>(HttpStatus.NO_CONTENT);
     }
 
     public ResponseEntity<Document> findById(String id) {
+
+        DocumentDb documentFromDb = documentDao.getCachedDocument(id);
+        if (documentFromDb != null) {
+            System.out.println("Found document in DB with id: " + documentFromDb.getId());
+            Document document = DocumentAdapter.fromDocumentDb(documentFromDb);
+            return new ResponseEntity<Document>(document, HttpStatus.OK);
+        }
+
         ExecutorService service = Executors.newCachedThreadPool();
         Set <Callable<ResponseEntity<Document>>> callables = new HashSet<Callable<ResponseEntity<Document>>>();
 
-        for (String apiUrl: APIs) {
+        for (String apiUrl: apiConfig.getApiList()) {
             Callable worker = new GetDocument(apiUrl + "/get/" + id);
             callables.add(worker);
         }
@@ -100,8 +115,11 @@ public class RepositoryServiceImpl implements RepositoryService
             List<Future<ResponseEntity<Document>>> futures = service.invokeAll(callables);
             for (Future<ResponseEntity<Document>> future : futures)
             {
-                System.out.println (future.get());
-                return future.get();
+                if (future.get().getBody() != null) {
+                    System.out.println(future.get().getBody());
+                    documentDao.save(DocumentAdapter.fromDocument(future.get().getBody()));
+                    return future.get();
+                }
             }
         }
         catch (InterruptedException e)
@@ -114,46 +132,22 @@ public class RepositoryServiceImpl implements RepositoryService
         }
         service.shutdown();
 
-       // RestTemplate restTemplate = new RestTemplate();
-        //ResponseEntity<Document> response = restTemplate.getForEntity(APIs.get(0) + "/get/" + id, Document.class);
         return null;
     }
 
     public void saveDocument(Document document) {
-       document.setId(UUID.randomUUID());
-
-       Comment comment = new Comment();
-       comment.setId(UUID.randomUUID());
-       comment.setUserId(document.getId());
-
        RestTemplate restTemplate = new RestTemplate();
-       restTemplate.postForEntity(APIs.get(0) + "/add", document, Document.class);
+       restTemplate.postForEntity(apiConfig.getApiList().get(new Random().nextInt(2)) + "/add", document, Document.class);
     }
 
-    public void updateDocument(Document document) {
+    public void updateDocument(Document document, String location) {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.put(APIs.get(0) + "/update", document, Document.class);
+        restTemplate.put(apiConfig.getCorrectApi(location) + "/update", document, Document.class);
     }
 
     public void deleteDocumentById(String id, String location) {
         RestTemplate restTemplate = new RestTemplate();
-        restTemplate.delete(getCorrectApi(location) + "/delete/" + id);
+        restTemplate.delete(apiConfig.getCorrectApi(location) + "/delete/" + id);
     }
 
-    private static List<String> populateAPIs(){
-        List<String> apis = new ArrayList<String>();
-        apis.add("http://localhost:8091/repo1/rest");
-        apis.add("http://localhost:8092/repo2/rest");
-        return apis;
-    }
-
-    private String getCorrectApi(String location) {
-        for (String api: APIs) {
-            if (location.contains(api)) {
-                System.out.println("Repository API location: " + api);
-                return api;
-            }
-        }
-        throw new IllegalArgumentException("Repository API is not registered " + location);
-    }
 }

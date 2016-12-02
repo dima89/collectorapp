@@ -13,6 +13,7 @@
     <jaxrs.version>2.0.1</jaxrs.version>
     <spring.verson>4.3.1.RELEASE</spring.verson>
     <jackson.version>2.5.3</jackson.version>
+    <org.hibernate-version>5.2.2.Final</org.hibernate-version>
   </properties>
 
   <dependencies>
@@ -33,6 +34,16 @@
       <version>${spring.verson}</version>
     </dependency>
     <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>${spring.verson}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+      <version>${spring.verson}</version>
+    </dependency>
+    <dependency>
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
       <version>3.1.0</version>
@@ -42,6 +53,26 @@
       <artifactId>spring-tx</artifactId>
       <version>${spring.verson}</version>
     </dependency>
+
+    <!-- Hibernate -->
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>${org.hibernate-version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-entitymanager</artifactId>
+      <version>${org.hibernate-version}</version>
+    </dependency>
+
+    <!-- H2 -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <version>1.4.191</version>
+    </dependency>
+
     <dependency>
       <groupId>com.tsi</groupId>
       <artifactId>document-dto</artifactId>
@@ -63,9 +94,9 @@
       </plugin>
 
       <plugin>
-        <groupId>org.mortbay.jetty</groupId>
+        <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-maven-plugin</artifactId>
-        <version>8.1.16.v20140903</version>
+        <version>9.4.0.M0</version>
         <configuration>
           <webApp>
             <contextPath>/</contextPath>

@@ -11,9 +11,9 @@ public interface RepositoryService {
 
     void saveDocument(Document user);
 
-    void updateDocument(Document user);
+    void updateDocument(Document user, String location);
 
     void deleteDocumentById(String id, String location);
 
-    ResponseEntity<List> findAllDocuments();
+    ResponseEntity<List<Document>> findAllDocuments();
 }
