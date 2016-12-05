@@ -11,8 +11,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.ConnectException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -26,7 +28,10 @@ public class RepositoryServiceImpl implements RepositoryService {
     @Autowired
     private DocumentDbDao documentDao;
 
-    public static class GetAllDocuments implements Callable {
+    @Autowired
+    private RestTemplate restTemplate;
+
+    public class GetAllDocuments implements Callable {
         private final String url;
 
         public GetAllDocuments(String url) {
@@ -34,15 +39,18 @@ public class RepositoryServiceImpl implements RepositoryService {
         }
 
         public ResponseEntity<List<Document>> call() throws Exception {
-            RestTemplate restTemplate = new RestTemplate();
-
-            ResponseEntity<Document[]> documents = restTemplate.getForEntity(url + "/getAllDocuments", Document[].class);
-            List<Document> list = Arrays.asList(documents.getBody());
-            return new ResponseEntity<List<Document>>(list, HttpStatus.OK);
+            try {
+                ResponseEntity<Document[]> documents = restTemplate.getForEntity(url + "/getAllDocuments", Document[].class);
+                List<Document> list = Arrays.asList(documents.getBody());
+                return new ResponseEntity<List<Document>>(list, HttpStatus.OK);
+            } catch (ResourceAccessException ex) {
+                System.out.println("Repository " + url + " is currently offline");
+                return new ResponseEntity<List<Document>>(new ArrayList<>(), HttpStatus.OK);
+            }
         }
     }
 
-    public static class GetDocument implements Callable {
+    public class GetDocument implements Callable {
         private final String url;
 
         public GetDocument(String url) {
@@ -50,15 +58,18 @@ public class RepositoryServiceImpl implements RepositoryService {
         }
 
         public ResponseEntity<Document> call() throws Exception {
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<Document> document = restTemplate.getForEntity(url, Document.class);
-            return document;
+            try {
+                return restTemplate.getForEntity(url, Document.class);
+            } catch (ResourceAccessException ex) {
+                System.out.println("Repository " + url + " is currently offline");
+                return new ResponseEntity<Document>(HttpStatus.NOT_FOUND);
+            }
         }
     }
 
     public ResponseEntity<List<Document>> findAllDocuments() {
 
-        ExecutorService service = Executors.newCachedThreadPool();
+        ExecutorService service = Executors.newSingleThreadExecutor();
         Set <Callable<ResponseEntity<List<Document>>>> callables = new HashSet<Callable<ResponseEntity<List<Document>>>>();
 
         for (String apiUrl: apiConfig.getApiList()) {
@@ -78,6 +89,7 @@ public class RepositoryServiceImpl implements RepositoryService {
                     response.getBody().add(documentObj);
                 }
             }
+            response.getBody().sort((n1, n2) -> n1.getName().compareTo(n2.getName()));
             return response;
         }
         catch (InterruptedException e)
@@ -102,7 +114,7 @@ public class RepositoryServiceImpl implements RepositoryService {
             return new ResponseEntity<Document>(document, HttpStatus.OK);
         }
 
-        ExecutorService service = Executors.newCachedThreadPool();
+        ExecutorService service = Executors.newSingleThreadExecutor();
         Set <Callable<ResponseEntity<Document>>> callables = new HashSet<Callable<ResponseEntity<Document>>>();
 
         for (String apiUrl: apiConfig.getApiList()) {
@@ -136,17 +148,19 @@ public class RepositoryServiceImpl implements RepositoryService {
     }
 
     public void saveDocument(Document document) {
-       RestTemplate restTemplate = new RestTemplate();
-       restTemplate.postForEntity(apiConfig.getApiList().get(new Random().nextInt(2)) + "/add", document, Document.class);
+        String url = apiConfig.getApiList().get(new Random().nextInt(2));
+        try {
+            restTemplate.postForEntity(url + "/add", document, Document.class);
+        } catch (ResourceAccessException ex) {
+            System.out.println("Repository " + url + " is currently offline");
+        }
     }
 
     public void updateDocument(Document document, String location) {
-        RestTemplate restTemplate = new RestTemplate();
         restTemplate.put(apiConfig.getCorrectApi(location) + "/update", document, Document.class);
     }
 
     public void deleteDocumentById(String id, String location) {
-        RestTemplate restTemplate = new RestTemplate();
         restTemplate.delete(apiConfig.getCorrectApi(location) + "/delete/" + id);
     }
 

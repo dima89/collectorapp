@@ -11,11 +11,9 @@ public class ApiConfig {
 
     public List<String> apiList = new ArrayList<String>();
 
-    @PostConstruct
-    public List<String> populateAPIs(){
+    public ApiConfig() {
         apiList.add("http://localhost:8091/repo1/rest");
         apiList.add("http://localhost:8092/repo2/rest");
-        return apiList;
     }
 
     public List<String> getApiList() {
