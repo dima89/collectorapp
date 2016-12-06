@@ -153,6 +153,7 @@ public class RepositoryServiceImpl implements RepositoryService {
             restTemplate.postForEntity(url + "/add", document, Document.class);
         } catch (ResourceAccessException ex) {
             System.out.println("Repository " + url + " is currently offline");
+            saveDocument(document);
         }
     }
 
